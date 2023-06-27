@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "WriteThrough": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7224",
+      "launchBrowser": false
+    }
+  }
+}
