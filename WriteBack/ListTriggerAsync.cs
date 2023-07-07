@@ -40,13 +40,12 @@ namespace WriteBack
             using FeedIterator<ListData> f = query
                 .Where(p => p.id == "listName")
                 .ToFeedIterator();
-            //if there doesnt exist an entry with this key in cosmos
 
             var response = await f.ReadNextAsync();
             var item = response.FirstOrDefault(defaultValue: null);
+            //if there doesnt exist an entry with this key in cosmos
             if (item == null)
             {
-                Console.WriteLine("Query null");
                 logger.LogInformation(entry);
                 string value = entry.ToString();
   
@@ -59,10 +58,8 @@ namespace WriteBack
 
                 await db.UpsertItemAsync(pair);
             }
-
             else
             {
-                Console.WriteLine("Querry not null ");
                 logger.LogInformation(entry);
                 string value = entry.ToString();
 
@@ -70,10 +67,6 @@ namespace WriteBack
 
                 temp2.Add(entry);
                 ListData pair = new ListData(id: "listName", value: temp2);
-                List<PatchOperation> patchOperations = new List<PatchOperation>()
-                {
-                    PatchOperation.Replace("/value", temp2),
-                };
 
                 ItemResponse<ListData> item2 = await db.UpsertItemAsync<ListData>(pair);
             }
