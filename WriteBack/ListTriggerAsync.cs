@@ -10,6 +10,9 @@ using System.Collections.Generic;
 using StackExchange.Redis;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.Extensions.Configuration;
+using System.IO;
+using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace WriteBack
 {
@@ -21,24 +24,24 @@ namespace WriteBack
     internal class WriteBack
     {
         //redis connection string
-        static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("RediscachePrimaryString");
-        static IDatabase cache = redisconnect.GetDatabase();
         public const string localhostSetting = "redisLocalhost";
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
         //connecting to CosmosDB
-        //primary connection string
-        static readonly string Endpoint = "Endpoint";
-        static readonly CosmosClient cc = new CosmosClient(Endpoint);
-        static readonly Microsoft.Azure.Cosmos.Container db = cc.GetDatabase("databasename").GetContainer("containername");
+        public const string Endpoint = "Endpoint";
 
         [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
-            [RedisListTrigger(localhostSetting, "listName")] string entry,
+            [RedisListTrigger(localhostSetting, "listTest")] string entry, [CosmosDB(
+                            databaseName: "dbname",
+                            containerName: "containername",
+                            Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
+            Container db = input.GetDatabase("dbname").GetContainer("containername");
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> f = query
-                .Where(p => p.id == "listName")
+                .Where(p => p.id == "listTest")
                 .ToFeedIterator();
 
             var response = await f.ReadNextAsync();
@@ -54,7 +57,7 @@ namespace WriteBack
                     entry
                 };
 
-                ListData pair = new ListData(id: "listName", value: temp);
+                ListData pair = new ListData(id: "listTest", value: temp);
 
                 await db.UpsertItemAsync(pair);
             }
@@ -63,13 +66,14 @@ namespace WriteBack
                 logger.LogInformation(entry);
                 string value = entry.ToString();
 
-                List<string> temp2 = item.value;
+                List<string> temp = item.value;
 
-                temp2.Add(entry);
-                ListData pair = new ListData(id: "listName", value: temp2);
+                temp.Add(entry);
+                ListData pair = new ListData(id: "listTest", value: temp);
 
                 ItemResponse<ListData> item2 = await db.UpsertItemAsync<ListData>(pair);
             }
         }
+
     }
 }

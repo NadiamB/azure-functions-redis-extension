@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using StackExchange.Redis;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Linq;
+using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace WriteThrough
 {
@@ -21,24 +22,24 @@ namespace WriteThrough
     internal class WriteThrough
     {
         //redis connection string
-        static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("RediscachePrimaryString");
-        static IDatabase cache = redisconnect.GetDatabase();
         public const string localhostSetting = "redisLocalhost";
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
         //connecting to CosmosDB
-        //primary connection string
-        static readonly string Endpoint = "Endpoint";
-        static readonly CosmosClient cc = new CosmosClient(Endpoint);
-        static readonly Microsoft.Azure.Cosmos.Container db = cc.GetDatabase("databasename").GetContainer("containername");
+        public const string Endpoint = "Endpoint";
 
         [FunctionName(nameof(ListTrigger))]
         public static void ListTrigger(
-            [RedisListTrigger(localhostSetting, "listName")] string entry,
+            [RedisListTrigger(localhostSetting, "listTest")] string entry, [CosmosDB(
+                            databaseName: "back",
+                            containerName: "async",
+                            Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
+            Container db = input.GetDatabase("back").GetContainer("async");
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> f = query
-                .Where(p => p.id == "listName")
+                .Where(p => p.id == "listTest")
                 .ToFeedIterator();
             
             //.Result blocks the execution until the result is available, /this can cause deadlock so thats why asynch is preferred
@@ -55,7 +56,7 @@ namespace WriteThrough
                     entry
                 };
 
-                ListData pair = new ListData(id: "listName", value: temp);
+                ListData pair = new ListData(id: "listTest", value: temp);
                 db.UpsertItemAsync(pair);
             }
             else
@@ -63,10 +64,10 @@ namespace WriteThrough
                 logger.LogInformation(entry);
                 string value = entry.ToString();
 
-                List<string> temp2 = item.value;
+                List<string> temp = item.value;
 
-                temp2.Add(entry);
-                ListData pair = new ListData(id: "listName", value: temp2);
+                temp.Add(entry);
+                ListData pair = new ListData(id: "listTest", value: temp);
 
                 ItemResponse<ListData> item2 =  db.UpsertItemAsync<ListData>(pair).Result;
             }

@@ -29,21 +29,15 @@ namespace CosmosToRedis
     internal class CosmosToRediscs
     {
         //redis connection string
-        static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("RediscachePrimaryString");
+        static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("PrimaryConnectionString");
         static IDatabase cache = redisconnect.GetDatabase();
         public const string localhostSetting = "redisLocalhost";
 
-        //connecting to CosmosDB
-        //primary connection string
-        static readonly string Endpoint = "Endpoint";
-        static readonly CosmosClient cc = new CosmosClient(Endpoint);
-        static readonly Microsoft.Azure.Cosmos.Container db = cc.GetDatabase("databasename").GetContainer("containername");
-
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
-        databaseName: "databasename",
-        containerName: "continername",
-        Connection = "connectionstringdb",
+        databaseName: "dbname",
+        containerName: "containername",
+        Connection = "endpoint",
         LeaseContainerName = "leases")]IReadOnlyList<ListData> input, ILogger log)
         {
             if (input == null || input.Count <= 0) return;
@@ -57,7 +51,7 @@ namespace CosmosToRedis
                 RedisValue[] redisValues = Array.ConvertAll(value2.value.ToArray(), item => (RedisValue)item);
                 foreach (var value in redisValues)
                 {
-                    cache.ListRightPush("listName", value);
+                    cache.ListRightPush("listTest", value);
                     log.LogInformation($"Saved item with id {input.Count} in Azure Redis cache");
                 }
             }
