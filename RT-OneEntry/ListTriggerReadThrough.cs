@@ -18,10 +18,8 @@ using System.Text;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace RT_OneEntry
+namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
-
-
     public record ListData
     (
         string id,
@@ -35,12 +33,12 @@ namespace RT_OneEntry
         [FunctionName(nameof(ListTriggerReadThroughFunc))]
         public static async Task ListTriggerReadThroughFunc(
             [RedisPubSubTrigger(localhostSetting, "__keyevent@0__:keymiss")] string listEntry, [CosmosDB(
-                            databaseName: "dbname",
-                            containerName: "contname",
+                            databaseName: "databaseName",
+                            containerName: "containerName",
                             Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
-            Container db = input.GetDatabase("dbname").GetContainer("contname");
+            Container db = input.GetDatabase("databaseName").GetContainer("containerName");
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
                 .Where(p => p.id == "listTest")

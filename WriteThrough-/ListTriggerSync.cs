@@ -12,14 +12,14 @@ using System.Linq;
 using Microsoft.Azure.Cosmos.Linq;
 using Container = Microsoft.Azure.Cosmos.Container;
 
-namespace WriteThrough
+namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
     public record ListData
     (
         string id,
         List<string> value
     );
-    internal class WriteThrough
+    public static class WriteThrough
     {
         //redis connection string
         public const string localhostSetting = "redisLocalhost";
@@ -31,12 +31,12 @@ namespace WriteThrough
         [FunctionName(nameof(ListTrigger))]
         public static void ListTrigger(
             [RedisListTrigger(localhostSetting, "listTest")] string listEntry, [CosmosDB(
-                            databaseName: "dbname",
-                            containerName: "containername",
+                            databaseName: "databaseName",
+                            containerName: "containerName",
                             Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
-            Container db = input.GetDatabase("dbname").GetContainer("containername");
+            Container db = input.GetDatabase("databaseName").GetContainer("containerName");
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> f = query
                 .Where(p => p.id == "listTest")

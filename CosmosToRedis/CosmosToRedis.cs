@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
 using Container = Microsoft.Azure.Cosmos.Container;
 
-namespace CosmosToRedis
+namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
     public record ListData
     (
@@ -26,18 +26,20 @@ namespace CosmosToRedis
         List<string> value
     );
 
-    internal class CosmosToRedis
+    public static class CosmosToRedis
     {
+
         //redis connection string
         static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("PrimaryConnectionString");
         static IDatabase cache = redisconnect.GetDatabase();
         public const string localhostSetting = "redisLocalhost";
+        public const string Endpoint = "Endpoint";
 
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
-        databaseName: "dbname",
-        containerName: "containername",
-        Connection = "endpoint",
+        databaseName: "databaseName",
+        containerName: "containerName",
+        Connection = "Endpoint",
         LeaseContainerName = "leases")]IReadOnlyList<ListData> input, ILogger log)
         {
             if (input == null || input.Count <= 0) return;
