@@ -10,7 +10,6 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Drawing;
 using System.Linq;
@@ -18,7 +17,6 @@ using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
-using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace RT_OneEntry
 {
@@ -34,14 +32,14 @@ namespace RT_OneEntry
 
         [FunctionName(nameof(ListTriggerReadThroughFunc))]
         public static async Task ListTriggerReadThroughFunc(
-            [RedisPubSubTrigger(localhostSetting, "__keyevent@0__:keymiss")] string entry, [CosmosDB(
+            [RedisPubSubTrigger(localhostSetting, "__keyevent@0__:keymiss")] string listEntry, [CosmosDB(
                             databaseName: "dbname",
                             containerName: "containername",
                             Connection = "endpoint" )]CosmosClient input,
             ILogger logger)
         {
             Container db = input.GetDatabase("back").GetContainer("async");
-            if(await cache.KeyExistsAsync(entry) == true){
+            if(await cache.KeyExistsAsync(listEntry) == true){
                 Console.WriteLine("This entry exists in the the cache.");
             }
 
@@ -49,10 +47,10 @@ namespace RT_OneEntry
             else{
                 Console.WriteLine("This entry does not exist in the the cache.");
                 var query = db.GetItemLinqQueryable<ListData>();
-                using FeedIterator<ListData> f = query
+                using FeedIterator<ListData> results = query
                     .Where(p => p.id == "listTest")
                     .ToFeedIterator();
-                var response = await f.ReadNextAsync();
+                var response = await results.ReadNextAsync();
                 var item = response.FirstOrDefault(defaultValue: null);
 
                 //if there doesnt exist an entry with this key in cosmos, 
@@ -63,7 +61,7 @@ namespace RT_OneEntry
                 //else, bring from cosmos to redis
                 else{
                     Console.WriteLine("The key is in CosmosDB ");
-                    logger.LogInformation(entry);
+                    logger.LogInformation(listEntry);
                     //get the amount of elements in cosmos associated with the key, so you can access each item
                     var item2 = response.Take(response.Count);
                     if (item2 == null) return;
@@ -77,7 +75,6 @@ namespace RT_OneEntry
                     }
                 }
             }
-            //return;
         }
     }
 }
