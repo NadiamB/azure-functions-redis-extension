@@ -28,11 +28,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 
     public static class CosmosToRedis
     {
-
-        //redis connection string
-        static ConnectionMultiplexer redisconnect = ConnectionMultiplexer.Connect("PrimaryConnectionString");
-        static IDatabase cache = redisconnect.GetDatabase();
         public const string localhostSetting = "redisLocalhost";
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
+
         public const string Endpoint = "Endpoint";
 
         [FunctionName("CosmosToRedis")]
@@ -43,8 +41,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         LeaseContainerName = "leases")]IReadOnlyList<ListData> input, ILogger log)
         {
             if (input == null || input.Count <= 0) return;
-
-            var cache = redisconnect.GetDatabase();
 
             Console.WriteLine(input);
 
