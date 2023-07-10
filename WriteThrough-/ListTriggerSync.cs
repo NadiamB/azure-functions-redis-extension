@@ -30,13 +30,13 @@ namespace WriteThrough
 
         [FunctionName(nameof(ListTrigger))]
         public static void ListTrigger(
-            [RedisListTrigger(localhostSetting, "listTest")] string entry, [CosmosDB(
-                            databaseName: "back",
-                            containerName: "async",
+            [RedisListTrigger(localhostSetting, "listTest")] string listEntry, [CosmosDB(
+                            databaseName: "dbname",
+                            containerName: "containername",
                             Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
-            Container db = input.GetDatabase("back").GetContainer("async");
+            Container db = input.GetDatabase("dbname").GetContainer("containername");
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> f = query
                 .Where(p => p.id == "listTest")
@@ -49,11 +49,11 @@ namespace WriteThrough
             //if there doesnt exist an entry with this key in cosmos
             if (item == null)
             {
-                logger.LogInformation(entry);
-                string value = entry.ToString();
+                logger.LogInformation(listEntry);
+                string value = listEntry.ToString();
                 List<string> temp = new List<string>
                 {
-                    entry
+                    listEntry
                 };
 
                 ListData pair = new ListData(id: "listTest", value: temp);
@@ -61,13 +61,13 @@ namespace WriteThrough
             }
             else
             {
-                logger.LogInformation(entry);
-                string value = entry.ToString();
+                logger.LogInformation(listEntry);
+                string value = listEntry.ToString();
 
-                List<string> temp = item.value;
+                List<string> resultsHolder = item.value;
 
-                temp.Add(entry);
-                ListData pair = new ListData(id: "listTest", value: temp);
+                resultsHolder.Add(listEntry);
+                ListData pair = new ListData(id: "listTest", value: resultsHolder);
 
                 ItemResponse<ListData> item2 =  db.UpsertItemAsync<ListData>(pair).Result;
             }
