@@ -3,14 +3,12 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using System.Collections;
-using System.ComponentModel;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Redis;
 using System.Collections.Generic;
 using StackExchange.Redis;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Linq;
-using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace WriteThrough
 {
@@ -30,30 +28,30 @@ namespace WriteThrough
 
         [FunctionName(nameof(ListTrigger))]
         public static void ListTrigger(
-            [RedisListTrigger(localhostSetting, "listTest")] string entry, [CosmosDB(
-                            databaseName: "back",
-                            containerName: "async",
+            [RedisListTrigger(localhostSetting, "listTest")] string listEntry, [CosmosDB(
+                            databaseName: "dbname",
+                            containerName: "containername",
                             Connection = "Endpoint" )]CosmosClient input,
             ILogger logger)
         {
-            Container db = input.GetDatabase("back").GetContainer("async");
+            Container db = input.GetDatabase("dbname").GetContainer("containername");
             var query = db.GetItemLinqQueryable<ListData>();
-            using FeedIterator<ListData> f = query
+            using FeedIterator<ListData> results = query
                 .Where(p => p.id == "listTest")
                 .ToFeedIterator();
             
             //.Result blocks the execution until the result is available, /this can cause deadlock so thats why asynch is preferred
-            var response = f.ReadNextAsync().Result;
+            var response = results.ReadNextAsync().Result;
             var item = response.FirstOrDefault(defaultValue: null);
 
             //if there doesnt exist an entry with this key in cosmos
             if (item == null)
             {
-                logger.LogInformation(entry);
-                string value = entry.ToString();
+                logger.LogInformation(listEntry);
+                string value = listEntry.ToString();
                 List<string> temp = new List<string>
                 {
-                    entry
+                    listEntry
                 };
 
                 ListData pair = new ListData(id: "listTest", value: temp);
@@ -61,13 +59,13 @@ namespace WriteThrough
             }
             else
             {
-                logger.LogInformation(entry);
-                string value = entry.ToString();
+                logger.LogInformation(listEntry);
+                string value = listEntry.ToString();
 
-                List<string> temp = item.value;
+                List<string> resultsHolder = item.value;
 
-                temp.Add(entry);
-                ListData pair = new ListData(id: "listTest", value: temp);
+                resultsHolder.Add(listEntry);
+                ListData pair = new ListData(id: "listTest", value: resultsHolder);
 
                 ItemResponse<ListData> item2 =  db.UpsertItemAsync<ListData>(pair).Result;
             }
