@@ -2,23 +2,13 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
-using System.Collections;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Redis;
 using System.Collections.Generic;
 using StackExchange.Redis;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Extensions.Configuration;
-using System.IO;
 
 namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
-    public record ListData
-    (
-        string id,
-        List<string> value
-    );
     public static class WriteBack
     {
         //Redis Cache primary connection string from local.settings.json
@@ -35,7 +25,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         //Uses the key of the user's choice and should be changed accordingly
         public const string key = "listTest";
 
-        [FunctionName(nameof(ListTriggerAsync))]
+       [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
             [RedisListTrigger(localhostSetting, key)] string listEntry, [CosmosDB(
             Connection = "Endpoint" )]CosmosClient client,
@@ -43,6 +33,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         {
             //Retrieve the database and container from the given client, which accesses the CosmosDB Endpoint
             Container db = client.GetDatabase(databaseName).GetContainer(containerName);
+
+            ///ListData holding the entry to be uploaded and List<string> holding what will be added to the newEntry
+            ListData newEntry;
+            List<string> resultsHolder;
 
             //Creates query for item inthe container and
             //uses feed iterator to keep track of token when receiving results from query
@@ -52,33 +46,22 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
                 .ToFeedIterator();
 
             //Retrieve collection of items from results and then the first element of the sequence
-            var response = await results.ReadNextAsync();
-            var item = response.FirstOrDefault(defaultValue: null);
+            FeedResponse<ListData> response = await results.ReadNextAsync();
+            ListData item = response.FirstOrDefault(defaultValue: null);
 
             //Optional logger to display what is being pushed to CosmosDB
             logger.LogInformation("The value added is " + listEntry);
 
-            //If there doesnt exist an entry with this key in CosmosDB, create a new entry
-            if (item == null)
-            {
-                List<string> resultsHolder = new List<string>
-                {
-                    listEntry
-                };
-
-                ListData newEntry = new ListData(id: key, value: resultsHolder);
-                await db.UpsertItemAsync(newEntry);
-            }
+            resultsHolder = new List<string>();
 
             //If there exists an entry with this key in CosmosDB, add the new values to the existing entry
-            else
+            if (item != null)
             {
-                List<string> resultsHolder = item.value;
-
-                resultsHolder.Add(listEntry);
-                ListData newEntry = new ListData(id: key, value: resultsHolder);
-                await db.UpsertItemAsync<ListData>(newEntry);
+                resultsHolder = item.value;
             }
+            resultsHolder.Add(listEntry);
+            newEntry = new ListData(id: key, value: resultsHolder);
+            await db.UpsertItemAsync<ListData>(newEntry);
         }
 
     }

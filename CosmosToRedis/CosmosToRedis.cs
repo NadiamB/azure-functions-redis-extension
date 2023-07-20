@@ -1,40 +1,22 @@
-﻿using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
+﻿using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.Design;
-using System.Drawing;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
-using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
-    public record ListData
-    (
-        string id,
-        List<string> value
-    );
-
-     public static class CosmosToRedis
+    public static class CosmosToRedis
     {
-        //Redis Ccche primary connection string from local.settings.json
+        //Redis Cache primary connection string from local.settings.json
         public const string localhostSetting = "redisLocalhost";
         private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
 
         //CosmosDB Endpoint from local.settings.json
         public const string Endpoint = "Endpoint";
+
+        //Uses the key of the user's choice and should be changed accordingly
+        public const string key = "listTest";
 
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
