@@ -26,11 +26,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         List<string> value
     );
 
-    public static class CosmosToRedis
+     public static class CosmosToRedis
     {
+        //Redis Ccche primary connection string from local.settings.json
         public const string localhostSetting = "redisLocalhost";
         private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
+
+        //CosmosDB Endpoint from local.settings.json
         public const string Endpoint = "Endpoint";
 
         [FunctionName("CosmosToRedis")]
@@ -38,19 +41,24 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         databaseName: "databaseName",
         containerName: "containerName",
         Connection = "Endpoint",
-        LeaseContainerName = "leases")]IReadOnlyList<ListData> input, ILogger log)
+        LeaseContainerName = "leases")]IReadOnlyList<ListData> readOnlyList, ILogger log)
         {
-            if (input == null || input.Count <= 0) return;
+            if (readOnlyList == null || readOnlyList.Count <= 0) return;
 
-            Console.WriteLine(input);
-
-            foreach (var value2 in input)
+            //Accessing each entry from readOnlyList
+            foreach (ListData inputValues in readOnlyList)
             {
-                RedisValue[] redisValues = Array.ConvertAll(value2.value.ToArray(), item => (RedisValue)item);
-                foreach (var value in redisValues)
+                //Converting one entry into an array format
+                RedisValue[] redisValues = Array.ConvertAll(inputValues.value.ToArray(), item => (RedisValue)item);
+
+                //Getting the value of the entry to push into the desired user specified key
+                foreach (var entryValue in redisValues)
                 {
-                    cache.ListRightPush("listTest", value);
-                    log.LogInformation($"Saved item with id {input.Count} in Azure Redis cache");
+                    //Push  key of "listTest", but can be updated to a desired key, with values into the cache
+                    cache.ListRightPush("listTest", entryValue);
+
+                    //Optional log to confirm each item is sent to the cache, optional to keep
+                    log.LogInformation("Saved item Azure Redis cache");
                 }
             }
         }

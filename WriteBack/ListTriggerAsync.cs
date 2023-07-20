@@ -21,55 +21,63 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
     );
     public static class WriteBack
     {
-        //redis connection string
+        //Redis Cache primary connection string from local.settings.json
         public const string localhostSetting = "redisLocalhost";
         private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
-        //connecting to CosmosDB
+        //CosmosDB Endpoint from local.settings.json
         public const string Endpoint = "Endpoint";
+
+        //CosmosDB database name and container name declared here
+        public const string databaseName = "databaseName";
+        public const string containerName = "containerName";
+
+        //Uses the key of the user's choice and should be changed accordingly
+        public const string key = "listTest";
 
         [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
-            [RedisListTrigger(localhostSetting, "listTest")] string listEntry, [CosmosDB(
-                            databaseName: "databaseName",
-                            containerName: "containerName",
-                            Connection = "Endpoint" )]CosmosClient input,
+            [RedisListTrigger(localhostSetting, key)] string listEntry, [CosmosDB(
+            Connection = "Endpoint" )]CosmosClient client,
             ILogger logger)
         {
-            Container db = input.GetDatabase("databaseName").GetContainer("containerName");
-            var query = db.GetItemLinqQueryable<ListData>();
+            //Retrieve the database and container from the given client, which accesses the CosmosDB Endpoint
+            Container db = client.GetDatabase(databaseName).GetContainer(containerName);
+
+            //Creates query for item inthe container and
+            //uses feed iterator to keep track of token when receiving results from query
+            IOrderedQueryable<ListData> query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
-                .Where(p => p.id == "listTest")
+                .Where(p => p.id == key)
                 .ToFeedIterator();
 
+            //Retrieve collection of items from results and then the first element of the sequence
             var response = await results.ReadNextAsync();
             var item = response.FirstOrDefault(defaultValue: null);
-            //if there doesnt exist an entry with this key in cosmos
+
+            //Optional logger to display what is being pushed to CosmosDB
+            logger.LogInformation("The value added is " + listEntry);
+
+            //If there doesnt exist an entry with this key in CosmosDB, create a new entry
             if (item == null)
             {
-                logger.LogInformation(listEntry);
-                string value = listEntry.ToString();
-  
-                List<string> temp = new List<string>
+                List<string> resultsHolder = new List<string>
                 {
                     listEntry
                 };
 
-                ListData pair = new ListData(id: "listTest", value: temp);
-
-                await db.UpsertItemAsync(pair);
+                ListData newEntry = new ListData(id: key, value: resultsHolder);
+                await db.UpsertItemAsync(newEntry);
             }
+
+            //If there exists an entry with this key in CosmosDB, add the new values to the existing entry
             else
             {
-                logger.LogInformation(listEntry);
-                string value = listEntry.ToString();
-
                 List<string> resultsHolder = item.value;
 
                 resultsHolder.Add(listEntry);
-                ListData pair = new ListData(id: "listTest", value: resultsHolder);
-
-                ItemResponse<ListData> item2 = await db.UpsertItemAsync<ListData>(pair);
+                ListData newEntry = new ListData(id: key, value: resultsHolder);
+                await db.UpsertItemAsync<ListData>(newEntry);
             }
         }
 
