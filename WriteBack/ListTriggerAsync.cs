@@ -19,12 +19,12 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         public const string Endpoint = "Endpoint";
 
         //CosmosDB database name and container name declared here
-        public const string databaseName = "back";
-        public const string containerName = "async";
+        public const string databaseName = "databaseName";
+        public const string containerName = "containerName";
 
         //Uses the key of the user's choice and should be changed accordingly
-        public const string key = "listTest2";
-
+        public const string key = "userListName";
+       
        [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
             [RedisListTrigger(localhostSetting, key)] string listEntry, [CosmosDB(

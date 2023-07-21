@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 {
     public static class ListTriggerReadThrough
-    {        //Redis Cache primary connection string from local.settings.json
+    {   
+        //Redis Cache primary connection string from local.settings.json
         public const string localhostSetting = "redisLocalhost";
         private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
 
@@ -65,7 +66,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
                 logger.LogInformation("This key does not exist in CosmosDB");
                 return;
             }
-
             // If there exists an entry with this key in cosmos, 
             else
             {

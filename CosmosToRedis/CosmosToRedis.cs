@@ -16,7 +16,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         public const string Endpoint = "Endpoint";
 
         //Uses the key of the user's choice and should be changed accordingly
-        public const string key = "listTest";
+        public const string key = "userListName";
 
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
