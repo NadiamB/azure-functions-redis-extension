@@ -54,11 +54,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 
             resultsHolder = new List<string>();
 
-            //If there exists an entry with this key in CosmosDB, add the new values to the existing entry
-            if (item != null)
-            {
-                resultsHolder = item.value;
-            }
+            //Create an entry if the key doesn't exist in CosmosDB or add to it if there is an existing entry
+            resultsHolder = item?.value ?? new List<string>();
+
             resultsHolder.Add(listEntry);
             newEntry = new ListData(id: key, value: resultsHolder);
             await db.UpsertItemAsync<ListData>(newEntry);

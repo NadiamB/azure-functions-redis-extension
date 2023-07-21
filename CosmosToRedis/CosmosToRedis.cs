@@ -30,17 +30,18 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             //Accessing each entry from readOnlyList
             foreach (ListData inputValues in readOnlyList)
             {
-                //Converting one entry into an array format
-                RedisValue[] redisValues = Array.ConvertAll(inputValues.value.ToArray(), item => (RedisValue)item);
-
-                //Getting the value of the entry to push into the desired user specified key
-                foreach (var entryValue in redisValues)
+                if(inputValues.id == key)
                 {
-                    //Push  key of "listTest", but can be updated to a desired key, with values into the cache
-                    cache.ListRightPush("listTest", entryValue);
+                    //Converting one entry into an array format
+                    RedisValue[] redisValues = Array.ConvertAll(inputValues.value.ToArray(), item => (RedisValue)item);
+                    cache.ListRightPush(key, redisValues);
 
-                    //Optional log to confirm each item is sent to the cache, optional to keep
-                    log.LogInformation("Saved item Azure Redis cache");
+                    //Optional foreach loop + log to confirm each value is sent to the cache
+                    foreach(RedisValue entryValue in redisValues)
+                    {
+                        log.LogInformation("Saved item " + entryValue + " in Azure Redis cache");
+
+                    }
                 }
             }
         }

@@ -24,13 +24,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             if (fullEntry == null) return;
 
             //Accessing each value from the entry 
-            foreach (ListData inputValue in fullEntry)
+            foreach (ListData inputValues in fullEntry)
             {
-                RedisValue[] redisValues = Array.ConvertAll(inputValue.value.ToArray(), item => (RedisValue)item);
-                foreach (var entryValue in redisValues)
+                RedisValue[] redisValues = Array.ConvertAll(inputValues.value.ToArray(), item => (RedisValue)item);
+                await cache.ListRightPushAsync(listEntry, redisValues);
+
+                //Optional foreach loop + console write line to confirm each value is sent to the cache
+                foreach (RedisValue entryValue in redisValues)
                 {
-                    //Push key with values into the cache, this variable is specified by the user
-                    await cache.ListRightPushAsync(listEntry, entryValue);
+                    Console.WriteLine("Saved item " + entryValue + " in Azure Redis cache");
+
                 }
             }
         }
@@ -67,7 +70,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             else
             {
                 //Optional logger to display the name of the list trying to be retrieved
-                logger.LogInformation(listEntry);
+                logger.LogInformation("Found key: " + listEntry);
 
                 await toCacheAsync(response, item, listEntry);
             }
