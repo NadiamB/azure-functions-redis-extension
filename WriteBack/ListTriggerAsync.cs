@@ -19,11 +19,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         public const string Endpoint = "Endpoint";
 
         //CosmosDB database name and container name declared here
-        public const string databaseName = "databaseName";
-        public const string containerName = "containerName";
+        public const string databaseName = "back";
+        public const string containerName = "async";
 
         //Uses the key of the user's choice and should be changed accordingly
-        public const string key = "listTest";
+        public const string key = "listTest2";
 
        [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
@@ -33,10 +33,6 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         {
             //Retrieve the database and container from the given client, which accesses the CosmosDB Endpoint
             Container db = client.GetDatabase(databaseName).GetContainer(containerName);
-
-            ///ListData holding the entry to be uploaded and List<string> holding what will be added to the newEntry
-            ListData newEntry;
-            List<string> resultsHolder;
 
             //Creates query for item inthe container and
             //uses feed iterator to keep track of token when receiving results from query
@@ -50,15 +46,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             ListData item = response.FirstOrDefault(defaultValue: null);
 
             //Optional logger to display what is being pushed to CosmosDB
-            logger.LogInformation("The value added is " + listEntry);
-
-            resultsHolder = new List<string>();
+            logger.LogInformation("The value added to " + key + " is " + listEntry + ". The value will be added to CosmosDB database: " + databaseName + " and container: " + containerName + ".");
 
             //Create an entry if the key doesn't exist in CosmosDB or add to it if there is an existing entry
-            resultsHolder = item?.value ?? new List<string>();
+            List<string> resultsHolder = item?.value ?? new List<string>();
 
             resultsHolder.Add(listEntry);
-            newEntry = new ListData(id: key, value: resultsHolder);
+            ListData newEntry = new ListData(id: key, value: resultsHolder);
             await db.UpsertItemAsync<ListData>(newEntry);
         }
 
