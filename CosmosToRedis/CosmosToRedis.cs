@@ -8,8 +8,8 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
     public static class CosmosToRedis
     {
         //Redis Cache primary connection string from local.settings.json
-        public const string localhostSetting = "redisLocalhost";
-        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
+        public const string connectionString = "redisConnectionString";
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(connectionString)).GetDatabase();
 
 
         //CosmosDB Endpoint from local.settings.json
@@ -18,10 +18,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         //Uses the key of the user's choice and should be changed accordingly
         public const string key = "userListName";
 
+        /// <summary>
+        /// This function is triggered by changes to a specified CosmosDB container. It retrieves a list of items that have been modified or added 
+        /// to the container and adds them to a Redis cache. The function converts each item's collection of values into an array and pushes the array to the Redis cache.
+        /// </summary>
+        /// <param name="readOnlyList">An IReadOnlyList of ListData objects representing the items that have been modified or added to the CosmosDB container.</param>
+        /// <param name="log">An ILogger object used for logging purposes.</param>
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
-        databaseName: "databaseName",
-        containerName: "containerName",
+        databaseName: "%databaseName%",
+        containerName: "%containerName%",
         Connection = "Endpoint",
         LeaseContainerName = "leases")]IReadOnlyList<ListData> readOnlyList, ILogger log)
         {

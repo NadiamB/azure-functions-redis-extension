@@ -12,27 +12,34 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
     public static class WriteBack
     {
         //Redis Cache primary connection string from local.settings.json
-        public const string localhostSetting = "redisLocalhost";
-        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
+        public const string connectionString = "redisConnectionString";
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(connectionString)).GetDatabase();
 
         //CosmosDB Endpoint from local.settings.json
         public const string Endpoint = "Endpoint";
 
-        //CosmosDB database name and container name declared here
+        //CosmosDB database name and container name from local.settings.json
         public const string databaseName = "databaseName";
         public const string containerName = "containerName";
 
         //Uses the key of the user's choice and should be changed accordingly
         public const string key = "userListName";
-       
-       [FunctionName(nameof(ListTriggerAsync))]
+
+        /// <summary>
+        /// This function retrieves a specified item from a CosmosDB container and adds a new entry to it. The entry is retrieved from a Redis list trigger and added to the specified item's collection of values.
+        /// </summary>
+        /// <param name="listEntry">A string representing the value to be added to the CosmosDB item's collection.</param>
+        /// <param name="client">>A Cosmos DB client object used to connect to the database.</param>
+        /// <param name="logger">An ILogger object used for logging purposes.</param>
+        /// <returns></returns>
+        [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
-            [RedisListTrigger(localhostSetting, key)] string listEntry, [CosmosDB(
-            Connection = "Endpoint" )]CosmosClient client,
+            [RedisListTrigger(connectionString, key)] string listEntry, [CosmosDB(
+            Connection = "Endpoint")]CosmosClient client,
             ILogger logger)
         {
             //Retrieve the database and container from the given client, which accesses the CosmosDB Endpoint
-            Container db = client.GetDatabase(databaseName).GetContainer(containerName);
+            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(databaseName)).GetContainer(Environment.GetEnvironmentVariable(containerName)); 
 
             //Creates query for item inthe container and
             //uses feed iterator to keep track of token when receiving results from query
