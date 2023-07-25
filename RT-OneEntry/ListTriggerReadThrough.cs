@@ -17,17 +17,17 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(connectionString)).GetDatabase();
 
         //CosmosDB database name and container name from local.settings.json
-        public const string databaseName = "databaseName";
-        public const string containerName = "containerName";
+        public const string CosmosDbDatabaseId = "CosmosDbDatabaseId";
+        public const string CosmosDbContainerId = "CosmosDbContainerId";
 
-       /// <summary>
-       ///      Adds a value to a Redis cache.
-       /// </summary>
-       /// <param name="response"> The response object returned by a Cosmos DB query. </param>
-       /// <param name="item"> The item to be added to the Redis cache. </param>
-       /// <param name="listEntry">The key for the Redis list to which the item will be added. </param>
-       /// <returns> None </returns>
-        public static async Task ToCacheAsync(FeedResponse<ListData> response, ListData item, string listEntry)
+        /// <summary>
+        ///      Adds a value to a Redis cache.
+        /// </summary>
+        /// <param name="response"> The response object returned by a Cosmos DB query. </param>
+        /// <param name="item"> The item to be added to the Redis cache. </param>
+        /// <param name="userListName">The key for the Redis list to which the item will be added. </param>
+        /// <returns> None </returns>
+        public static async Task ToCacheAsync(FeedResponse<ListData> response, ListData item, string userListName)
         {
             //Retrieve the values in cosmos associated with the list name, so you can access each item
             var fullEntry = response.Take(response.Count);
@@ -38,7 +38,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             foreach (ListData inputValues in fullEntry)
             {
                 RedisValue[] redisValues = Array.ConvertAll(inputValues.value.ToArray(), item => (RedisValue)item);
-                await cache.ListRightPushAsync(listEntry, redisValues);
+                await cache.ListRightPushAsync(userListName, redisValues);
 
                 //Optional foreach loop + console write line to confirm each value is sent to the cache
                 foreach (RedisValue entryValue in redisValues)
@@ -53,24 +53,24 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         /// Function that retrieves a list from CosmosDB based on a Redis key miss event, and stores it in Redis cache using read-through caching. 
         /// The function takes a RedisPubSubTrigger attribute, which listens for key miss events on the Redis cache
         /// </summary>
-        /// <param name="listEntry">The key for the value to be retrieved from Cosmos DB and added to the Redis cache.</param>
+        /// <param name="userListName">The key for the value to be retrieved from Cosmos DB and added to the Redis cache.</param>
         /// <param name="client">A Cosmos DB client object used to connect to the database.</param>
         /// <param name="logger">An ILogger object used for logging purposes.</param>
         /// <returns></returns>
         [FunctionName(nameof(ListTriggerReadThroughFunc))]
         public static async Task ListTriggerReadThroughFunc(
-            [RedisPubSubTrigger(connectionString, "__keyevent@0__:keymiss")] string listEntry, [CosmosDB(
-            Connection = "Endpoint" )]CosmosClient client,
+            [RedisPubSubTrigger(connectionString, "__keyevent@0__:keymiss")] string userListName, [CosmosDB(
+            Connection = "cosmosDBConnectionString" )]CosmosClient client,
             ILogger logger)
         {
             //Retrieve the database and container from the given client, which accesses the CosmosDB Endpoint
-            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(databaseName)).GetContainer(Environment.GetEnvironmentVariable(containerName));
+            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(CosmosDbDatabaseId)).GetContainer(Environment.GetEnvironmentVariable(CosmosDbContainerId));
 
             //Creates query for item inthe container and
             //uses feed iterator to keep track of token when receiving results from query
             IOrderedQueryable<ListData> query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
-                .Where(p => p.id == listEntry)
+                .Where(p => p.id == userListName)
                 .ToFeedIterator();
 
             //Retrieve collection of items from results and then the first element of the sequence
@@ -88,9 +88,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
             else
             {
                 //Optional logger to display the name of the list trying to be retrieved
-                logger.LogInformation("Found key: " + listEntry);
+                logger.LogInformation("Found key: " + userListName);
 
-                await ToCacheAsync(response, item, listEntry);
+                await ToCacheAsync(response, item, userListName);
             }
         }
     }
