@@ -12,15 +12,24 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Identity.Client;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
+using Azure;
+using System.ComponentModel;
 
 namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 {
     [Collection("RedisTriggerTests")]
     public class CachePatternListTests
     {
-        public const string databaseName = "databaseName";
-        public const string containerName = "containerName";
+        //Replace with desired key name
         string key = "userListName";
+
+        //Replace DatabaseName and ContainerName with user's info
+        public const string CosmosDbDatabaseID = "CosmosDbDatabaseID";
+        public const string CosmosDbContainerID = "CosmosDbContainerID";
+
+        //Replace with number of values associated to the key in cosmos
+        int iterations = 2;
+
         [Fact]
         public async void ListsTrigger_WriteBack()
         {
@@ -30,7 +39,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
             ConcurrentDictionary<string, int> counts = new ConcurrentDictionary<string, int>();
             counts.TryAdd($"Executed '{functionName}' (Succeeded", valuesArray.Length);
 
-            using (ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.localhostSetting)))
+            using (ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.connectionString)))
             {
                 await multiplexer.GetDatabase().KeyDeleteAsync(functionName);
 
@@ -40,7 +49,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
                     await multiplexer.GetDatabase().ListLeftPushAsync(key, valuesArray);
 
-                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    await Task.Delay(TimeSpan.FromSeconds(3));
 
                     await multiplexer.CloseAsync();
                     functionsProcess.Kill();
@@ -54,16 +63,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
         public async void ListsTrigger_WriteBackHeavyLoading()
         {
             string functionName = nameof(CachePatternListTestFunctions.ListTriggerAsync);
-            RedisValue[] valuesArray = new RedisValue[200];
+            RedisValue[] valuesArray = new RedisValue[2000];
             for (int i = 0; i < valuesArray.Length; i++)
             {
-                valuesArray[i] = "test" + i;
+                valuesArray[i] = i;
             }
 
             ConcurrentDictionary<string, int> counts = new ConcurrentDictionary<string, int>();
             counts.TryAdd($"Executed '{functionName}' (Succeeded", valuesArray.Length);
 
-            using (ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.localhostSetting)))
+            using (ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.connectionString)))
             {
                 await multiplexer.GetDatabase().KeyDeleteAsync(functionName);
 
@@ -73,7 +82,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
                     await multiplexer.GetDatabase().ListLeftPushAsync(key, valuesArray);
 
-                    await Task.Delay(TimeSpan.FromSeconds(256));
+                    await Task.Delay(TimeSpan.FromSeconds(2566));
 
                     await multiplexer.CloseAsync();
                     functionsProcess.Kill();
@@ -86,13 +95,10 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
         [Fact]
         public async void ListsTrigger_InCosmos()
         {
-
-            CosmosClientBuilder clientBuilder = new CosmosClientBuilder(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.Endpoint));
+            CosmosClientBuilder clientBuilder = new CosmosClientBuilder(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.cosmosDBConnectionString));
             CosmosClient cosmosClient = clientBuilder.Build();
 
-            //Replace DatabaseName and ContainerName with user's info
-            Container db = cosmosClient.GetDatabase(databaseName).GetContainer(containerName);
-
+            Container db = cosmosClient.GetDatabase(CosmosDbDatabaseID).GetContainer(CosmosDbContainerID);
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
                 .Where(p => p.id == key)
@@ -109,13 +115,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
         [Fact]
         public async void ListsTrigger_CosmosToRedis()
         {
-            CosmosClientBuilder clientBuilder = new CosmosClientBuilder(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.Endpoint));
-            CosmosClient cosmosClient = clientBuilder.Build();
-            ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.localhostSetting));
+            ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.connectionString));
             bool exists = true;
 
-            //Replace DatabaseName and ContainerName with user's info
-            Container db = cosmosClient.GetDatabase(databaseName).GetContainer(containerName);
+            CosmosClientBuilder clientBuilder = new CosmosClientBuilder(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.cosmosDBConnectionString));
+            CosmosClient cosmosClient = clientBuilder.Build();
+
+            Container db = cosmosClient.GetDatabase(CosmosDbDatabaseID).GetContainer(CosmosDbContainerID);
 
             var query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
@@ -142,35 +148,42 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
             Assert.True(exists);
         }
-     
 
-        
+
+
 
         [Fact]
         public async void ListsTrigger_ReadThrough()
         {
+            ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.connectionString));
             string functionName = nameof(CachePatternListTestFunctions.ListTriggerReadThroughFunc);
-          
-            bool exists;
+            bool exists = true;
 
-            using (ConnectionMultiplexer multiplexer = ConnectionMultiplexer.Connect(RedisUtilities.ResolveConnectionString(CachePatternListIntegrationTestHelpers.localsettings, CachePatternListTestFunctions.localhostSetting)))
+            multiplexer.GetDatabase().KeyDelete(key);
+
             using (Process functionsProcess = CachePatternListIntegrationTestHelpers.StartFunction(functionName, 7071))
             {
-                await multiplexer.GetDatabase().KeyDeleteAsync(functionName);
+                for (int i = 0; i < iterations; i++)
+                {
+                    multiplexer.GetDatabase().ListRange(key, 0, -1);
+                    await Task.Delay(TimeSpan.FromSeconds(4));
+                    if (i != iterations - 1)
+                    {
+                        multiplexer.GetDatabase().KeyDelete(key);
+                    }
+                }
 
-                long listLength = await multiplexer.GetDatabase().ListLengthAsync(key);
-                await multiplexer.GetDatabase().ListRangeAsync(key, 0, listLength - 1);
+                exists = multiplexer.GetDatabase().KeyExists(key);
 
-                await Task.Delay(TimeSpan.FromSeconds(5));
-
-                exists = await multiplexer.GetDatabase().KeyExistsAsync(key);
-                await multiplexer.CloseAsync();
+                multiplexer.Close();
                 functionsProcess.Kill();
 
                 Assert.True(exists);
             }
+
         }
 
     }
 }
+
 

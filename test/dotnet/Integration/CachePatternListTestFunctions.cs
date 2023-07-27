@@ -14,14 +14,14 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 {
     public static class CachePatternListTestFunctions
     {
-        public const string localhostSetting = "redisLocalhost";
-        public const string Endpoint = "Endpoint";
+        public const string connectionString = "redisConnectionString";
+        public const string cosmosDBConnectionString = "cosmosDBConnectionString";
         public const int pollingInterval = 100;
-        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(localhostSetting)).GetDatabase();
+        private static readonly IDatabase cache = ConnectionMultiplexer.Connect(Environment.GetEnvironmentVariable(connectionString)).GetDatabase();
 
         //CosmosDB database name and container name declared here
-        public const string databaseName = "databaseName";
-        public const string containerName = "containerName";
+        public const string CosmosDbDatabaseId = "CosmosDbDatabaseId";
+        public const string CosmosDbContainerId% = "CosmosDbContainerId%";
 
         //Uses the key of the user's choice and should be changed accordingly
         public const string key = "userListName";
@@ -41,9 +41,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
-        databaseName: "%databaseName%",
-        containerName: "%containerName%",
-        Connection = "Endpoint",
+        databaseName: "%CosmosDbDatabaseId%",
+        containerName: "%CosmosDbContainerId%",
+        Connection = "cosmosDBConnectionString",
         LeaseContainerName = "leases")]IReadOnlyList<ListData> readOnlyList, ILogger log)
         {
             if (readOnlyList == null || readOnlyList.Count <= 0) return;
@@ -60,11 +60,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
         [FunctionName(nameof(ListTriggerAsync))]
         public static async Task ListTriggerAsync(
-             [RedisListTrigger(localhostSetting, key)] string listEntry, [CosmosDB(
-            Connection = "Endpoint" )]CosmosClient client,
+             [RedisListTrigger(connectionString, key)] string listEntry, [CosmosDB(
+            Connection = "cosmosDBConnectionString" )]CosmosClient client,
              ILogger logger)
         {
-            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(databaseName)).GetContainer(Environment.GetEnvironmentVariable(containerName));
+            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(CosmosDbDatabaseId)).GetContainer(Environment.GetEnvironmentVariable(CosmosDbContainerId));
 
             IOrderedQueryable<ListData> query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
@@ -83,11 +83,11 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
 
         [FunctionName(nameof(ListTriggerReadThroughFunc))]
         public static async Task ListTriggerReadThroughFunc(
-            [RedisPubSubTrigger(localhostSetting, "__keyevent@0__:keymiss")] string listEntry, [CosmosDB(
-            Connection = "Endpoint" )]CosmosClient client,
+            [RedisPubSubTrigger(connectionString, "__keyevent@0__:keymiss")] string listEntry, [CosmosDB(
+            Connection = "cosmosDBConnectionString" )]CosmosClient client,
             ILogger logger)
         {
-            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(databaseName)).GetContainer(Environment.GetEnvironmentVariable(containerName));
+            Container db = client.GetDatabase(Environment.GetEnvironmentVariable(CosmosDbDatabaseId)).GetContainer(Environment.GetEnvironmentVariable(CosmosDbContainerId));
 
             IOrderedQueryable<ListData> query = db.GetItemLinqQueryable<ListData>();
             using FeedIterator<ListData> results = query
@@ -105,4 +105,5 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Tests.Integration
         }
     }
 }
+
 
