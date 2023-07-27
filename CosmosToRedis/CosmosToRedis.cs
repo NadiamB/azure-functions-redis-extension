@@ -13,7 +13,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
 
 
         //CosmosDB Endpoint from local.settings.json
-        public const string cosmosDBConnectionString = "cosmosDBConnectionString";
+        public const string Endpoint = "Endpoint";
 
         //Uses the key of the user's choice and should be changed accordingly
         public const string key = "userListName";
@@ -26,9 +26,9 @@ namespace Microsoft.Azure.WebJobs.Extensions.Redis.Samples
         /// <param name="log">An ILogger object used for logging purposes.</param>
         [FunctionName("CosmosToRedis")]
         public static void Run([CosmosDBTrigger(
-        databaseName: "%CosmosDbDatabaseId%",
-        containerName: "%CosmosDbContainerId%",
-        Connection = "cosmosDBConnectionString",
+        databaseName: "%databaseName%",
+        containerName: "%containerName%",
+        Connection = "Endpoint",
         LeaseContainerName = "leases")]IReadOnlyList<ListData> readOnlyList, ILogger log)
         {
             if (readOnlyList == null || readOnlyList.Count <= 0) return;
